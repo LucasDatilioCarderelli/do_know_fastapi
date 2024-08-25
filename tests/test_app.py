@@ -112,9 +112,10 @@ def test_read_users_by_id_not_found(client):
     assert response.status_code == HTTPStatus.NOT_FOUND
 
 
-def test_update_client(client, user):
+def test_update_client(client, user, token):
     response = client.put(
-        '/users/1',
+        f'/users/{user.id}',
+        headers={'Authorization': f'Bearer {token}'},
         json={
             'username': 'newuser',
             'email': 'newemail@email.com',
@@ -129,28 +130,65 @@ def test_update_client(client, user):
     }
 
 
-def test_update_user_not_found(client):
+def test_update_user_from_another_user(client, token):
     response = client.put(
         '/users/2',
+        headers={'Authorization': f'Bearer {token}'},
         json={
             'username': 'user2',
             'email': 'user2@email.com',
             'password': 'password2',
         },
     )
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'User not found'}
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.json() == {
+        'detail': 'User not allowed to update this user'
+    }
 
 
-def test_delete_user(client, user):
-    response = client.delete(f'/users/{user.id}')
+def test_delete_user(client, user, token):
+    response = client.delete(
+        f'/users/{user.id}',
+        headers={'Authorization': f'Bearer {token}'},
+    )
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'message': 'User deleted'}
 
 
-def test_delete_user_not_found(client):
-    response = client.delete('/users/2')
+def test_delete_user_from_another_user(client, token):
+    response = client.delete(
+        '/users/2',
+        headers={'Authorization': f'Bearer {token}'},
+    )
 
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'User not found'}
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.json() == {
+        'detail': 'User not allowed to delete this user'
+    }
+
+
+def test_login_for_access_token(client, user):
+    response = client.post(
+        '/token/',
+        data={'username': user.email, 'password': user.clean_password},
+    )
+
+    token = response.json()
+    assert response.status_code == HTTPStatus.OK
+    assert 'access_token' in token
+    assert 'token_type' in token
+    assert token['token_type'] == 'Bearer'
+
+
+def test_login_for_access_token_invalid(client, user):
+    response = client.post(
+        '/token/',
+        data={
+            'username': 'wrong@test.com',
+            'password': 'wrong',
+        },
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json() == {'detail': 'Incorrect email or password'}

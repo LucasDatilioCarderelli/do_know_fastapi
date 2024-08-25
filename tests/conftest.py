@@ -7,6 +7,7 @@ from sqlalchemy.pool import StaticPool
 from do_know_fastapi.app import app
 from do_know_fastapi.database import get_session
 from do_know_fastapi.models import User, table_registry
+from do_know_fastapi.security import get_password_hash
 
 
 @pytest.fixture
@@ -38,10 +39,15 @@ def session():
 
 @pytest.fixture
 def user(session):
-    user = User(username='user', email='user@test.com', password='password')
+    pwd = 'password'
+    user = User(
+        username='user', email='user@test.com', password=get_password_hash(pwd)
+    )
     session.add(user)
     session.commit()
     session.refresh(user)
+
+    user.clean_password = pwd  # Monkey patching
 
     return user
 
@@ -61,3 +67,13 @@ def users(session):
     session.refresh(users[2])
 
     return users
+
+
+@pytest.fixture
+def token(client, user):
+    response = client.post(
+        '/token/',
+        data={'username': user.email, 'password': user.clean_password},
+    )
+
+    return response.json()['access_token']
