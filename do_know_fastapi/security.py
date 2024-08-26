@@ -12,13 +12,11 @@ from zoneinfo import ZoneInfo
 
 from do_know_fastapi.database import get_session
 from do_know_fastapi.models import User
+from do_know_fastapi.settings import Settings
 
 pwd_context = PasswordHash.recommended()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
-
-SECRET_KEY = '42'
-ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
+settings = Settings()
 
 
 def get_password_hash(password: str):
@@ -33,11 +31,11 @@ def create_access_token(data: dict):
     to_encode = data.copy()
 
     expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
     to_encode.update({'exp': expire})
-    encoded_jwt = encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     return encoded_jwt
 
@@ -53,7 +51,7 @@ def get_current_user(
     )
 
     try:
-        payload = decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get('sub')
         if email is None:  # pragma: no cover
             raise credentials_exception

@@ -2,18 +2,19 @@ from http import HTTPStatus
 
 from jwt import decode
 
-from do_know_fastapi.security import (
-    ALGORITHM,
-    SECRET_KEY,
-    create_access_token,
-)
+from do_know_fastapi.security import create_access_token
+from do_know_fastapi.settings import Settings
+
+settings = Settings()
 
 
 def test_jwt():
     data = {'sub': 'test@test.com'}
     result = create_access_token(data)
 
-    result = decode(result, SECRET_KEY, algorithms=[ALGORITHM])
+    result = decode(
+        result, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+    )
 
     assert result['sub'] == data['sub']
     assert 'exp' in result
